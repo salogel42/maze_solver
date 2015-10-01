@@ -1,4 +1,4 @@
-########### this section for debug purposes only ###########
+########### this section for debug purposes, printing the maze ###########
 import sys
 
 def print_even(maze_row, dir):
@@ -111,13 +111,15 @@ def new_path_with_dir(path, dir):
     new_path.append(dir)
     return new_path
 
+############### version that just returns first path it finds ###############
+
 # recursively walk in every direction open to you from each point, marking your
 # progress as you go and returning if you find yourself at the goal position
 def solve_maze_rec(maze, r, c, path):
-    if (r == len(maze) - 1) and (c == len(maze[0]) - 1):
-        return path
     # we've been here, so mark it before moving on
     maze[r][c]['visited'] = True
+    if (r == len(maze) - 1) and (c == len(maze[0]) - 1):
+        return path
     # try all the directions from here
     for key in x_y_from_direction:
         # make sure there's no wall
@@ -154,14 +156,67 @@ def condense_path(path):
     condensed_path.append(prev + ' ' + str(count))
     return condensed_path
 
+###############  find the *best* path   ###############
+
+def reset_maze(maze):
+    for row in maze:
+        for cell in row:
+            cell['visited'] = False
+
+# recursively walk in every direction open to you from each point, marking your
+# progress as you go and returning if you find yourself at the goal position.
+# Also, make sure that your path is better than any other options!
+def solve_maze_best_path_rec(maze, r, c, path):
+    # we've been here, so mark it before moving on
+    if (r == len(maze) - 1) and (c == len(maze[0]) - 1):
+        return path
+    maze[r][c]['visited'] = True
+    best_path = None
+    # try all the directions from here
+    for key in x_y_from_direction:
+        # make sure there's no wall
+        if not maze[r][c][key]:
+            x_y = x_y_from_direction[key]
+            # make sure there's a valid cell that way
+            if in_maze_unvisited(maze, x_y, r, c):
+                # following two lines allow you to watch the algorithm in action
+                # print_ascii_maze(maze)
+                # raw_input("enter to continue")
+                # try going that way, adding the direction we went to the path!
+                result = solve_maze_best_path_rec(maze, r + x_y['y'], c + x_y['x'],
+                    new_path_with_dir(path, key))
+                # If we got back a real path, see if it's better than other
+                # options.  If so, go with it!
+                if result and (not best_path or len(result) < len(best_path)):
+                    best_path = result
+    # unmark since there might be a better way to get here through another path!
+    maze[r][c]['visited'] = False
+    return best_path
+
+###############
+
 # read in, solve, then pretty-print the solution
 def main():
     maze = read_maze('maze.txt')
-    # printed here to make it easier to trace and verify
-    print_ascii_maze(maze)
     path = solve_maze_rec(maze, 0, 0, [])
-    for step in condense_path(path):
-        print step
+    # Print the marked-up maze to show what routes we tried.
+    # Note that this will likely include spots not on the solution path, since
+    # it shows all visited spots
+    print_ascii_maze(maze)
+    print "First available path:"
+    if path:
+        for step in condense_path(path):
+            print step
+
+    reset_maze(maze)
+    path = solve_maze_best_path_rec(maze, 0, 0, [])
+    # Print the marked-up maze again.  Note that it's not marked because we
+    # unmarked on our way out.
+    print_ascii_maze(maze)
+    print "Best path:"
+    if path:
+        for step in condense_path(path):
+            print step
 
 if __name__ == "__main__":
     main()
